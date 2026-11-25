@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sổ Cân Sầu Riêng - Tính Tiền Nhanh</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2canvas để xuất ảnh hóa đơn gửi Zalo -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        durian: {
+                            green: '#1e4d2b',      // Xanh vỏ sầu riêng đậm
+                            greenLight: '#2d6a4f', // Xanh lá tươi
+                            greenSoft: '#e8f3ee',  // Nền xanh nhạt
+                            gold: '#f59e0b',       // Vàng múi sầu riêng đậm
+                            cream: '#fef3c7',      // Vàng kem nhạt
+                            creamBg: '#fffbeb',    // Nền kem dịu mắt
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Tùy chỉnh thanh cuộn và tối ưu cảm ứng */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f1f5f9;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* Thanh cuộn gọn gàng cho danh sách lượt cân */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        /* Hiệu ứng in ấn */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-receipt-area, #print-receipt-area * {
+                visibility: visible;
+            }
+            #print-receipt-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased pb-28 lg:pb-12">
+
+    <!-- Thông báo nổi (Toast Notification) thay thế alert() -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-[90vw] pointer-events-none"></div>
+
+    <!-- Header Ứng Dụng -->
+    <header class="bg-durian-green text-white shadow-sm sticky top-0 z-30 border-b border-emerald-900/40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-400 text-durian-green p-2 rounded-2xl shadow-sm flex items-center justify-center">
+                    <!-- Icon Sầu Riêng SVG -->
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L14.5 5.5L18.5 5L19 9L22 11.5L19.5 15L20 19L16 19.5L13.5 22.5L10.5 19.5L6.5 19L7 15L4.5 11.5L7.5 9L8 5L12 5.5L12 2Z"/>
+                        <path d="M12 2V5.5"/>
+                        <circle cx="12" cy="12" r="3" fill="currentColor" fill-opacity="0.25"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base sm:text-lg tracking-tight leading-tight">SỔ CÂN SẦU RIÊNG</h1>
+                    <p class="text-[11px] sm:text-xs text-emerald-200/90 font-medium">Tính tiền nhanh tại vườn & vựa</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="openHistoryModal()" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 transition px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-white/15">
+                    <i data-lucide="history" class="w-4 h-4 text-amber-300"></i>
+                    <span class="hidden sm:inline">Sổ lưu trữ</span>
+                    <span id="history-badge" class="bg-amber-400 text-durian-green text-xs font-extrabold px-1.5 py-0.5 rounded-full">0</span>
+                </button>
+                <button onclick="confirmNewReceipt()" class="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-durian-green active:scale-95 transition px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold shadow-xs">
+                    <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+                    <span>Phiếu mới</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Nội dung chính -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-5 pt-5 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+        
+        <!-- CỘT TRÁI (7/12 trên Desktop): Nhập thông tin chủ hàng, Bảng giá & Cân hàng -->
+        <div class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- BƯỚC 1 & 2 GỘP GỌN TRONG CARD THÔNG TIN PHIẾU -->
+            <section class="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+                <!-- Phần 1: Chủ hàng -->
+                <div class="p-4 sm:p-5 border-b border-slate-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-extrabold uppercase tracking-wide text-slate-700 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-durian-green text-white flex items-center justify-center text-xs font-extrabold">1</span>
+                            Thông tin chủ hàng
+                        </h2>
+                        <span id="current-date-display" class="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg"></span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Tên chủ vườn / Khách hàng</label>
+                            <div class="relative">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="owner-name" placeholder="VD: Chú Ba Tiền Giang..." oninput="saveCurrentState()"
+                                    class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:bg-white focus:border-durian-green focus:ring-2 focus:ring-durian-green/15 outline-none transition">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">SĐT / Ghi chú vườn</label>
+                            <div class="relative">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="owner-note" placeholder="VD: 0909... - Cai Lậy" oninput="saveCurrentState()"
+                                    class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white focus:border-durian-green focus:ring-2 focus:ring-durian-green/15 outline-none transition">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phần 2: Chọn giống & Đơn giá -->
+                <div class="p-4 sm:p-5 bg-slate-50/40">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-extrabold uppercase tracking-wide text-slate-700 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-durian-green text-white flex items-center justify-center text-xs font-extrabold">2</span>
+                            Chọn giống & Đơn giá
+                        </h2>
+                        <button onclick="openAddVarietyModal()" class="text-xs font-bold text-durian-green bg-durian-greenSoft hover:bg-emerald-100 px-3 py-1.5 rounded-xl flex items-center gap-1 transition active:scale-95 border border-emerald-200/80">
+                            <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+                            Thêm giống mới
+                        </button>
+                    </div>
+
+                    <!-- Grid các thẻ giống sầu riêng -->
+                    <div id="varieties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <!-- Render bằng JS -->
+                    </div>
+
+                    <!-- Thanh chỉnh nhanh đơn giá của giống đang chọn -->
+                    <div class="mt-3.5 flex flex-wrap items-center justify-between gap-2 bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-durian-green animate-pulse"></span>
+                            <span class="text-xs font-medium text-slate-500">Đang chọn:</span>
+                            <span id="selected-variety-badge" class="text-sm font-extrabold text-durian-green">Ri6 - Hàng A</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+                            <label for="active-price-input" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Đơn giá (đ/kg):</label>
+                            <input type="text" inputmode="numeric" id="active-price-input" oninput="handleActivePriceChange(this)"
+                                class="w-28 sm:w-32 px-3 py-1.5 text-right font-extrabold text-base text-durian-green bg-amber-50/70 border border-amber-300 rounded-xl focus:outline-none focus:border-durian-green focus:bg-white transition">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BƯỚC 3: KHU VỰC NHẬP LƯỢT CÂN NHANH (THIẾT KẾ SÁNG, RÕ NÉT, DỄ NHÌN NGOÀI TRỜI) -->
+            <section class="bg-white rounded-2xl shadow-md border-2 border-durian-green overflow-hidden">
+                <!-- Thanh tiêu đề & Chuyển đổi chế độ Trừ bì -->
+                <div class="bg-durian-green px-4 py-3 text-white flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-amber-400 text-durian-green flex items-center justify-center text-xs font-black">3</span>
+                        <h2 class="text-sm sm:text-base font-extrabold tracking-wide">
+                            NHẬP LƯỢT CÂN #<span id="next-turn-number" class="text-amber-300">1</span>
+                        </h2>
+                    </div>
+
+                    <!-- Pill chuyển chế độ trừ bì -->
+                    <div class="bg-black/25 p-1 rounded-xl flex items-center gap-1 text-xs">
+                        <button type="button" id="mode-per-turn-btn" onclick="setTareMode('per_turn')"
+                            class="py-1.5 px-2.5 rounded-lg font-extrabold transition flex items-center gap-1 bg-amber-400 text-durian-green shadow-2xs">
+                            <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>
+                            <span>Trừ bì từng lượt</span>
+                        </button>
+                        <button type="button" id="mode-batch-total-btn" onclick="setTareMode('batch_total')"
+                            class="py-1.5 px-2.5 rounded-lg font-bold transition flex items-center gap-1 text-emerald-100 hover:bg-white/10">
+                            <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                            <span>Trừ bì 1 lần lô</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5">
+                    <div class="grid grid-cols-12 gap-3 items-end">
+                        <!-- Ô nhập số KG thô -->
+                        <div id="weight-input-col" class="col-span-7 sm:col-span-6 transition-all">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-bold text-slate-700">Số KG cân được</label>
+                                <span id="live-calc-preview" class="text-xs font-extrabold text-durian-green bg-durian-greenSoft px-2 py-0.5 rounded-md">
+                                    0 đ
+                                </span>
+                            </div>
+                            <div class="relative">
+                                <input type="number" step="0.1" inputmode="decimal" id="weight-input" placeholder="0.0"
+                                    oninput="updateLivePreview()" onkeydown="handleWeightKeydown(event)"
+                                    class="w-full pl-4 pr-11 py-3.5 bg-slate-50 text-slate-900 text-3xl sm:text-4xl font-black rounded-2xl border-2 border-slate-300 focus:bg-white focus:border-durian-green focus:ring-4 focus:ring-durian-green/15 focus:outline-none transition">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-base">kg</span>
+                            </div>
+                        </div>
+
+                        <!-- Ô nhập Trừ bì (sọt/rổ) -->
+                        <div id="per-turn-tare-col" class="col-span-5 sm:col-span-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-bold text-slate-700">Trừ bì</label>
+                                <button type="button" onclick="toggleLockTare()" id="lock-tare-btn" title="Khóa số trừ bì cho các lượt sau"
+                                    class="text-[11px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold transition">
+                                    <i data-lucide="unlock" class="w-3 h-3" id="lock-tare-icon"></i>
+                                    <span id="lock-tare-text">Tự do</span>
+                                </button>
+                            </div>
+                            <input type="number" step="0.1" inputmode="decimal" id="tare-input" value="0" placeholder="0"
+                                oninput="updateLivePreview()" onkeydown="handleWeightKeydown(event)"
+                                class="w-full px-3 py-3.5 bg-amber-50/60 text-amber-800 text-2xl sm:text-3xl font-extrabold text-center rounded-2xl border-2 border-amber-300 focus:bg-white focus:border-amber-500 focus:outline-none transition">
+                        </div>
+
+                        <!-- Nút Thêm lượt cân -->
+                        <div id="add-turn-btn-col" class="col-span-12 sm:col-span-3">
+                            <button type="button" onclick="addWeighingEntry()"
+                                class="w-full py-4 px-4 bg-durian-green hover:bg-durian-greenLight active:scale-[0.98] text-white font-extrabold text-base sm:text-lg rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-5 h-5 text-amber-300 stroke-[2.5]"></i>
+                                <span>GHI CÂN</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Phím tắt trừ bì nhanh cho sọt phổ biến -->
+                    <div id="quick-tare-bar" class="mt-3.5 pt-3 border-t border-slate-100 flex items-center gap-1.5 flex-wrap text-xs">
+                        <span class="text-slate-500 font-semibold mr-1">Trừ bì nhanh:</span>
+                        <button type="button" onclick="setQuickTare(0)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 font-bold transition">0 kg</button>
+                        <button type="button" onclick="setQuickTare(1.5)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 font-bold transition">1.5 kg</button>
+                        <button type="button" onclick="setQuickTare(2)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 font-bold transition">2 kg</button>
+                        <button type="button" onclick="setQuickTare(2.5)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 font-bold transition">2.5 kg</button>
+                        <button type="button" onclick="setQuickTare(3)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 font-bold transition">3 kg</button>
+                    </div>
+
+                    <!-- Thông báo hướng dẫn khi ở chế độ Trừ bì 1 lần tổng lô -->
+                    <div id="batch-mode-hint" class="hidden mt-3.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-xs text-amber-900 flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                        <span>Đang cân <strong>nguyên số kg (chưa trừ bì)</strong>. Nhập tổng trừ bì cả lô ở khung <strong>Phiếu tính tiền</strong> bên cạnh.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BƯỚC 4: BẢNG CHI TIẾT CÁC LƯỢT CÂN -->
+            <section class="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+                <div class="px-4 py-3.5 sm:px-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                    <h2 class="text-sm font-extrabold uppercase tracking-wide text-slate-700 flex items-center gap-2">
+                        <i data-lucide="list-ordered" class="w-4 h-4 text-durian-green"></i>
+                        Danh sách lượt cân (<span id="total-turns-badge" class="text-durian-green">0</span> lượt)
+                    </h2>
+                    <button onclick="confirmClearEntries()" id="clear-all-btn" class="hidden text-xs font-bold text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        Xóa hết
+                    </button>
+                </div>
+
+                <!-- Danh sách trống -->
+                <div id="empty-entries-state" class="p-10 text-center">
+                    <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="scale" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-sm font-bold text-slate-600">Chưa có lượt cân nào</p>
+                    <p class="text-xs text-slate-400 mt-1">Nhập số kg ở khung phía trên và bấm <strong>Ghi cân</strong> (hoặc phím Enter).</p>
+                </div>
+
+                <!-- Bảng dữ liệu lượt cân -->
+                <div id="entries-table-wrapper" class="hidden overflow-x-auto max-h-[420px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 z-10 bg-slate-100 text-slate-600 text-[11px] uppercase font-extrabold border-b border-slate-200">
+                            <tr>
+                                <th class="py-2.5 px-3 text-center w-12">Lượt</th>
+                                <th class="py-2.5 px-2">Giống / Giá</th>
+                                <th class="py-2.5 px-2 text-right">Cân / Bì</th>
+                                <th class="py-2.5 px-2 text-right">Thực tính</th>
+                                <th class="py-2.5 px-2 text-right">Thành tiền</th>
+                                <th class="py-2.5 px-2 text-center w-16">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entries-tbody" class="divide-y divide-slate-100 text-sm">
+                            <!-- Render bằng JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- CỘT PHẢI (5/12 trên Desktop): Bảng Tổng Hợp & Xuất Hóa Đơn (Sticky trên Desktop) -->
+        <div class="lg:col-span-5 lg:sticky lg:top-20 flex flex-col gap-4">
+            
+            <!-- PHIẾU TỔNG KẾT THANH TOÁN (Dùng để chụp ảnh / In phiếu) -->
+            <div id="print-receipt-area" class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                <!-- Đầu phiếu -->
+                <div class="bg-gradient-to-r from-durian-green to-durian-greenLight text-white p-4 sm:p-5">
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <span class="inline-block text-[10px] font-extrabold uppercase tracking-widest text-durian-green bg-amber-400 px-2.5 py-0.5 rounded-md mb-1.5">
+                                PHIẾU TÍNH TIỀN SẦU RIÊNG
+                            </span>
+                            <h3 id="receipt-owner-display" class="text-lg sm:text-xl font-extrabold text-white leading-snug">Khách lẻ / Nhà vườn</h3>
+                            <p id="receipt-note-display" class="text-xs text-emerald-100 mt-0.5 hidden"></p>
+                        </div>
+                        <div class="text-right text-xs text-emerald-100 shrink-0">
+                            <p id="receipt-date-display" class="font-bold text-white"></p>
+                            <p id="receipt-id-display" class="text-[11px] bg-black/20 px-2 py-0.5 rounded mt-1 inline-block font-mono">#SR-001</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bảng tổng hợp theo từng giống/loại -->
+                <div class="p-4 sm:p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Tổng hợp theo loại hàng</h4>
+                        <span id="receipt-tare-mode-badge" class="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">Trừ bì từng lượt</span>
+                    </div>
+                    
+                    <div id="summary-empty" class="text-xs text-slate-400 italic py-5 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        Chưa có dữ liệu tổng hợp
+                    </div>
+
+                    <div id="summary-list" class="space-y-2.5 hidden">
+                        <!-- Render từng nhóm giống sầu riêng -->
+                    </div>
+
+                    <!-- Đường kẻ đứt đoạn hóa đơn -->
+                    <div class="my-4 border-t-2 border-dashed border-slate-200"></div>
+
+                    <!-- 3 Ô TÁCH BIỆT: TỔNG CÂN - TRỪ BÌ - TỔNG CỘNG SAU TRỪ BÌ -->
+                    <div class="grid grid-cols-3 gap-2 sm:gap-2.5 mb-4">
+                        <div class="bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-200/90 flex flex-col justify-between">
+                            <div>
+                                <span class="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-500">Tổng cân</span>
+                                <span id="grand-total-turns-sub" class="block text-[10px] font-semibold text-slate-400 mt-0.5">(0 lượt)</span>
+                            </div>
+                            <span id="grand-total-gross-kg" class="text-sm sm:text-base font-extrabold text-slate-800 mt-1.5 block">0 kg</span>
+                        </div>
+
+                        <div class="bg-amber-50/80 p-2.5 sm:p-3 rounded-xl border border-amber-200/90 flex flex-col justify-between">
+                            <div>
+                                <span class="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-amber-800">Trừ bì</span>
+                                <span class="block text-[10px] font-semibold text-amber-600/80 mt-0.5">(sọt / rổ)</span>
+                            </div>
+                            <span id="grand-total-tare-kg" class="text-sm sm:text-base font-extrabold text-amber-800 mt-1.5 block">-0 kg</span>
+                        </div>
+
+                        <div class="bg-durian-greenSoft p-2.5 sm:p-3 rounded-xl border-2 border-durian-green/30 flex flex-col justify-between">
+                            <div>
+                                <span class="block text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide text-durian-green">Sau trừ bì</span>
+                                <span class="block text-[10px] font-semibold text-emerald-700/80 mt-0.5">(thực tính)</span>
+                            </div>
+                            <span id="grand-total-kg" class="text-sm sm:text-lg font-black text-durian-green mt-1.5 block">0 kg</span>
+                        </div>
+                    </div>
+
+                    <!-- TỔNG THÀNH TIỀN -->
+                    <div class="bg-amber-50 border-2 border-amber-400 rounded-2xl p-4">
+                        <div class="flex items-baseline justify-between gap-2">
+                            <span class="text-xs sm:text-sm font-extrabold text-amber-950 uppercase">Tổng thành tiền:</span>
+                            <span id="grand-total-money" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">0 đ</span>
+                        </div>
+
+                        <!-- Mục Tiền đã đặt cọc / Ứng trước -->
+                        <div class="mt-3 pt-2.5 border-t border-amber-200/90 flex items-center justify-between gap-2">
+                            <label for="deposit-input" class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                                <i data-lucide="wallet" class="w-3.5 h-3.5 text-amber-700"></i>
+                                <span>Đã đặt cọc / Ứng trước:</span>
+                            </label>
+                            <div class="relative w-36 sm:w-40">
+                                <input type="text" inputmode="numeric" id="deposit-input" placeholder="0"
+                                    oninput="handleDepositChange(this)"
+                                    class="w-full pr-6 pl-2.5 py-1.5 text-right text-sm font-extrabold text-durian-green bg-white border border-amber-300 rounded-xl focus:outline-none focus:border-durian-green transition">
+                                <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Số tiền còn lại phải thanh toán -->
+                        <div class="mt-2.5 pt-2.5 border-t border-dashed border-amber-300 flex items-baseline justify-between gap-2">
+                            <span id="remaining-label" class="text-xs sm:text-sm font-extrabold text-red-700 uppercase">Còn phải thanh toán:</span>
+                            <span id="remaining-money" class="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">0 đ</span>
+                        </div>
+
+                        <p id="money-in-words" class="text-xs font-semibold text-amber-900 mt-2 italic border-t border-amber-200/80 pt-2">
+                            Bằng chữ: Không đồng
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CÁC NÚT THAO TÁC XUẤT PHIẾU / GỬI ZALO -->
+            <div class="bg-white rounded-2xl shadow-xs border border-slate-200/90 p-3.5 flex flex-col gap-2.5 no-print">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button onclick="copyInvoiceText()" class="py-3 px-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                        <span>Chép gửi Zalo</span>
+                    </button>
+                    <button onclick="exportReceiptImage()" class="py-3 px-3 bg-durian-green hover:bg-durian-greenLight active:scale-95 text-white font-bold text-sm rounded-xl shadow-xs transition flex items-center justify-center gap-2">
+                        <i data-lucide="image-down" class="w-4 h-4"></i>
+                        <span>Xuất ảnh phiếu</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button onclick="saveReceiptToHistory()" class="py-2.5 px-3 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 border border-amber-300">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Lưu vào sổ</span>
+                    </button>
+                    <button onclick="window.print()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition flex items-center justify-center gap-1.5 border border-slate-200">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        <span>In phiếu</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- THANH TỔNG KẾT NHANH DƯỚI ĐÁY MÀN HÌNH ĐIỆN THOẠI (MOBILE STICKY BAR) -->
+    <div class="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 z-30 shadow-[0_-4px_15px_rgba(0,0,0,0.06)] flex items-center justify-between gap-3 no-print">
+        <div>
+            <div class="text-[11px] font-semibold text-slate-500">
+                Tổng (<span id="mobile-bar-kg" class="font-bold text-durian-green">0 kg</span>):
+            </div>
+            <div id="mobile-bar-money" class="text-lg font-black text-red-600 leading-tight">0 đ</div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="scrollToReceipt()" class="px-3.5 py-2 bg-durian-green text-white text-xs font-extrabold rounded-xl shadow-xs active:scale-95 transition flex items-center gap-1.5">
+                <i data-lucide="receipt" class="w-4 h-4 text-amber-300"></i>
+                <span>Xem phiếu</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 1: THÊM GIỐNG SẦU RIÊNG MỚI -->
+    <div id="add-variety-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-extrabold text-durian-green">Thêm giống / loại sầu riêng</h3>
+                <button onclick="closeModal('add-variety-modal')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tên giống / Phân loại</label>
+                    <input type="text" id="new-variety-name" placeholder="VD: Black Thorn A, Ri6 Xô..."
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:border-durian-green focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Đơn giá thu mua (VNĐ/kg)</label>
+                    <input type="text" inputmode="numeric" id="new-variety-price" placeholder="VD: 75.000" oninput="formatInputCurrency(this)"
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base font-extrabold text-durian-green focus:border-durian-green focus:outline-none">
+                </div>
+                <div class="pt-2 flex gap-2 justify-end">
+                    <button onclick="closeModal('add-variety-modal')" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+                    <button onclick="saveNewVariety()" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-durian-green text-white hover:bg-durian-greenLight">Thêm giống</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CHỈNH SỬA LƯỢT CÂN -->
+    <div id="edit-entry-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-extrabold text-durian-green">Sửa lượt cân #<span id="edit-entry-index-label">1</span></h3>
+                <button onclick="closeModal('edit-entry-modal')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <input type="hidden" id="edit-entry-id">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Giống / Loại sầu riêng</label>
+                    <select id="edit-entry-variety" onchange="onEditVarietyChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:border-durian-green focus:outline-none bg-white"></select>
+                </div>
+                    <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Số KG thô</label>
+                        <input type="number" step="0.1" inputmode="decimal" id="edit-entry-weight"
+                            class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base font-extrabold text-slate-900 focus:border-durian-green focus:outline-none">
+                    </div>
+                    <div id="edit-entry-tare-wrapper">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Trừ bì (kg)</label>
+                        <input type="number" step="0.1" inputmode="decimal" id="edit-entry-tare"
+                            class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base font-bold text-amber-700 focus:border-durian-green focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Đơn giá áp dụng (VNĐ/kg)</label>
+                    <input type="text" inputmode="numeric" id="edit-entry-price" oninput="formatInputCurrency(this)"
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-base font-bold text-durian-green focus:border-durian-green focus:outline-none">
+                </div>
+                <div class="pt-2 flex gap-2 justify-end">
+                    <button onclick="closeModal('edit-entry-modal')" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+                    <button onclick="saveEditedEntry()" class="px-5 py-2.5 rounded-xl text-sm font-bold bg-durian-green text-white hover:bg-durian-greenLight">Cập nhật</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: LỊCH SỬ CÁC PHIẾU CÂN -->
+    <div id="history-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-durian-green text-white">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="folder-open" class="w-5 h-5 text-amber-300"></i>
+                    <h3 class="text-lg font-extrabold">Sổ lưu trữ phiếu cân</h3>
+                </div>
+                <button onclick="closeModal('history-modal')" class="p-1.5 text-emerald-200 hover:text-white rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="history-list-container" class="p-4 overflow-y-auto space-y-3 flex-1 bg-slate-50">
+                <!-- Danh sách phiếu đã lưu -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: XÁC NHẬN HÀNH ĐỘNG (Thay thế confirm()) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <h3 id="confirm-title" class="text-base font-extrabold text-slate-900">Xác nhận</h3>
+            </div>
+            <p id="confirm-message" class="text-sm text-slate-600 mb-5 leading-relaxed"></p>
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeModal('confirm-modal')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy bỏ</button>
+                <button id="confirm-action-btn" class="px-4 py-2 rounded-xl text-sm font-bold bg-durian-green text-white hover:bg-durian-greenLight">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: XEM TRƯỚC & TẢI ẢNH PHIẾU CÂN -->
+    <div id="image-preview-modal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="text-base font-extrabold text-durian-green">Ảnh phiếu tính tiền</h3>
+                <button onclick="closeModal('image-preview-modal')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto bg-slate-100 flex justify-center">
+                <img id="generated-receipt-img" src="" alt="Phiếu tính tiền sầu riêng" class="rounded-xl shadow-md max-w-full h-auto border border-slate-200">
+            </div>
+            <div class="p-4 border-t border-slate-200 flex gap-2 justify-end bg-white">
+                <p class="text-xs text-slate-500 flex-1 self-center">Nhấn giữ vào ảnh để lưu hoặc gửi trực tiếp qua Zalo.</p>
+                <a id="download-receipt-link" download="Phieu_Can_Sau_Rieng.png" class="px-4 py-2.5 bg-durian-green text-white text-sm font-bold rounded-xl hover:bg-durian-greenLight flex items-center gap-1.5">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Tải ảnh về
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. KHỞI TẠO DỮ LIỆU & TRẠNG THÁI ỨNG DỤNG
+        // ==========================================
+        const STORAGE_KEY_STATE = 'durian_weighing_current_state_v2';
+        const STORAGE_KEY_HISTORY = 'durian_weighing_history_v2';
+
+        const DEFAULT_VARIETIES = [
+            { id: 'ri6_a', name: 'Ri6 - Hàng A', price: 65000 },
+            { id: 'ri6_b', name: 'Ri6 - Hàng B', price: 50000 },
+            { id: 'ri6_c', name: 'Ri6 - Kem / C', price: 28000 },
+            { id: 'thai_a', name: 'Monthong (Thái) A', price: 85000 },
+            { id: 'thai_b', name: 'Monthong (Thái) B', price: 65000 },
+            { id: 'thai_c', name: 'Thái - Kem / C', price: 32000 },
+            { id: 'musang', name: 'Musang King', price: 115000 },
+            { id: 'chuong_bo', name: 'Chuồng Bò', price: 55000 }
+        ];
+
+        function generateReceiptCode() {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const rand = Math.floor(100 + Math.random() * 900);
+            return `SR-${pad(now.getDate())}${pad(now.getMonth() + 1)}-${rand}`;
+        }
+
+        let state = {
+            receiptId: generateReceiptCode(),
+            createdAt: new Date().toISOString(),
+            ownerName: '',
+            ownerNote: '',
+            varieties: JSON.parse(JSON.stringify(DEFAULT_VARIETIES)),
+            selectedVarietyId: 'ri6_a',
+            entries: [], // { id, varietyId, varietyName, rawWeight, tareWeight, netWeight, price, total }
+            lockTare: false,
+            tareMode: 'per_turn', // 'per_turn' (trừ bì từng lượt) | 'batch_total' (trừ bì 1 lần tổng lô)
+            batchTares: {}, // { [groupKey]: { mode: 'direct'|'baskets', baskets: 0, kgPerBasket: 2, totalTare: 0 } }
+            depositAmount: 0 // Tiền đã đặt cọc / ứng trước
+        };
+
+        let savedReceipts = [];
+
+        // ==========================================
+        // 2. CÁC HÀM TIỆN ÍCH ĐỊNH DẠNG & ĐỌC SỐ TIỀN
+        // ==========================================
+        function formatNumber(num) {
+            if (isNaN(num)) return '0';
+            return Number(num).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+        }
+
+        function formatMoney(amount) {
+            if (isNaN(amount)) return '0 đ';
+            return Math.round(amount).toLocaleString('vi-VN') + ' đ';
+        }
+
+        function parseRawNumber(str) {
+            if (typeof str === 'number') return str;
+            const cleaned = String(str || '').replace(/[^\d]/g, '');
+            return parseInt(cleaned, 10) || 0;
+        }
+
+        function formatInputCurrency(input) {
+            const raw = parseRawNumber(input.value);
+            input.value = raw > 0 ? raw.toLocaleString('vi-VN') : '';
+        }
+
+        function readMoneyVietnamese(number) {
+            if (!number || number <= 0) return 'Không đồng';
+            const units = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu tỷ'];
+            const digits = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+            function readTriple(triple, showZeroHundred) {
+                let hundred = Math.floor(triple / 100);
+                let ten = Math.floor((triple % 100) / 10);
+                let unit = triple % 10;
+                let res = '';
+
+                if (hundred > 0 || showZeroHundred) {
+                    res += digits[hundred] + ' trăm ';
+                }
+                if (ten > 1) {
+                    res += digits[ten] + ' mươi ';
+                    if (unit === 1) res += 'mốt ';
+                    else if (unit === 4) res += 'tư ';
+                    else if (unit === 5) res += 'lăm ';
+                    else if (unit > 0) res += digits[unit] + ' ';
+                } else if (ten === 1) {
+                    res += 'mười ';
+                    if (unit === 5) res += 'lăm ';
+                    else if (unit > 0) res += digits[unit] + ' ';
+                } else if (ten === 0 && unit > 0) {
+                    if (hundred > 0 || showZeroHundred) res += 'lẻ ';
+                    res += digits[unit] + ' ';
+                }
+                return res.trim();
+            }
+
+            let num = Math.round(number);
+            let groups = [];
+            while (num > 0) {
+                groups.push(num % 1000);
+                num = Math.floor(num / 1000);
+            }
+
+            let result = '';
+            for (let i = groups.length - 1; i >= 0; i--) {
+                if (groups[i] > 0) {
+                    const showZeroHundred = i < groups.length - 1;
+                    result += readTriple(groups[i], showZeroHundred) + ' ' + units[i] + ' ';
+                }
+            }
+
+            result = result.trim();
+            return result.charAt(0).toUpperCase() + result.slice(1) + ' đồng';
+        }
+
+        // ==========================================
+        // 3. THÔNG BÁO NỔI (TOAST) & MODAL
+        // ==========================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgClass = 'bg-durian-green text-white border-emerald-500';
+            let iconName = 'check-circle-2';
+            if (type === 'error') {
+                bgClass = 'bg-red-600 text-white border-red-400';
+                iconName = 'alert-circle';
+            } else if (type === 'info') {
+                bgClass = 'bg-slate-800 text-amber-300 border-slate-600';
+                iconName = 'info';
+            }
+
+            toast.className = `pointer-events-auto flex items-center gap-2 px-3.5 py-2.5 rounded-xl shadow-lg border text-xs sm:text-sm font-semibold transition-all duration-300 ${bgClass}`;
+            toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2600);
+        }
+
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function showConfirmDialog(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            const btn = document.getElementById('confirm-action-btn');
+            btn.onclick = () => {
+                closeModal('confirm-modal');
+                onConfirm();
+            };
+            openModal('confirm-modal');
+        }
+
+        // ==========================================
+        // 4. LƯU TRỮ DỮ LIỆU & QUẢN LÝ GIỐNG SẦU RIÊNG
+        // ==========================================
+        function saveCurrentState() {
+            state.ownerName = document.getElementById('owner-name').value;
+            state.ownerNote = document.getElementById('owner-note').value;
+            updateReceiptHeaderDisplay();
+            try {
+                localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(state));
+            } catch (e) {
+                console.warn('Không thể lưu trạng thái vào localStorage:', e);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const rawHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+                if (rawHistory) {
+                    savedReceipts = JSON.parse(rawHistory) || [];
+                }
+                const rawState = localStorage.getItem(STORAGE_KEY_STATE);
+                if (rawState) {
+                    const parsed = JSON.parse(rawState);
+                    state = {
+                        ...state,
+                        ...parsed,
+                        varieties: parsed.varieties && parsed.varieties.length ? parsed.varieties : state.varieties,
+                        entries: parsed.entries || [],
+                        batchTares: parsed.batchTares || {},
+                        depositAmount: parsed.depositAmount || 0
+                    };
+                }
+            } catch (e) {
+                console.warn('Lỗi đọc dữ liệu đã lưu:', e);
+            }
+        }
+
+        function updateReceiptHeaderDisplay() {
+            const now = new Date(state.createdAt || Date.now());
+            const dateStr = now.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('current-date-display').textContent = dateStr;
+            document.getElementById('receipt-date-display').textContent = dateStr;
+            document.getElementById('receipt-id-display').textContent = `#${state.receiptId}`;
+
+            const ownerEl = document.getElementById('receipt-owner-display');
+            const noteEl = document.getElementById('receipt-note-display');
+            ownerEl.textContent = state.ownerName && state.ownerName.trim() ? state.ownerName.trim() : 'Khách lẻ / Nhà vườn';
+
+            if (state.ownerNote && state.ownerNote.trim()) {
+                noteEl.textContent = state.ownerNote.trim();
+                noteEl.classList.remove('hidden');
+            } else {
+                noteEl.classList.add('hidden');
+            }
+        }
+
+        function renderVarieties() {
+            const grid = document.getElementById('varieties-grid');
+            grid.innerHTML = '';
+
+            state.varieties.forEach(v => {
+                const isSelected = v.id === state.selectedVarietyId;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => selectVariety(v.id);
+                btn.className = isSelected
+                    ? 'p-2.5 rounded-xl border-2 border-durian-green bg-durian-greenSoft text-left transition shadow-2xs relative'
+                    : 'p-2.5 rounded-xl border border-slate-200 bg-white hover:border-durian-green/50 text-left transition';
+
+                btn.innerHTML = `
+                    <div class="font-extrabold text-xs ${isSelected ? 'text-durian-green' : 'text-slate-800'} truncate">${v.name}</div>
+                    <div class="text-[11px] font-bold ${isSelected ? 'text-amber-700' : 'text-slate-500'} mt-0.5">${v.price.toLocaleString('vi-VN')} đ/kg</div>
+                `;
+                grid.appendChild(btn);
+            });
+
+            const activeVar = state.varieties.find(v => v.id === state.selectedVarietyId) || state.varieties[0];
+            if (activeVar) {
+                state.selectedVarietyId = activeVar.id;
+                document.getElementById('selected-variety-badge').textContent = activeVar.name;
+                document.getElementById('active-price-input').value = activeVar.price.toLocaleString('vi-VN');
+            }
+        }
+
+        function selectVariety(id) {
+            state.selectedVarietyId = id;
+            renderVarieties();
+            updateLivePreview();
+            saveCurrentState();
+            const weightInput = document.getElementById('weight-input');
+            if (weightInput) weightInput.focus();
+        }
+
+        function handleActivePriceChange(input) {
+            formatInputCurrency(input);
+            const newPrice = parseRawNumber(input.value);
+            const activeVar = state.varieties.find(v => v.id === state.selectedVarietyId);
+            if (activeVar) {
+                activeVar.price = newPrice;
+                renderVarieties();
+                updateLivePreview();
+                saveCurrentState();
+            }
+        }
+
+        function handleDepositChange(input) {
+            formatInputCurrency(input);
+            state.depositAmount = parseRawNumber(input.value);
+            renderSummaryOnly();
+            saveCurrentState();
+        }
+
+        function openAddVarietyModal() {
+            document.getElementById('new-variety-name').value = '';
+            document.getElementById('new-variety-price').value = '';
+            openModal('add-variety-modal');
+            setTimeout(() => document.getElementById('new-variety-name').focus(), 100);
+        }
+
+        function saveNewVariety() {
+            const name = document.getElementById('new-variety-name').value.trim();
+            const price = parseRawNumber(document.getElementById('new-variety-price').value);
+
+            if (!name) {
+                showToast('Vui lòng nhập tên giống sầu riêng!', 'error');
+                return;
+            }
+            if (price <= 0) {
+                showToast('Vui lòng nhập đơn giá hợp lệ!', 'error');
+                return;
+            }
+
+            const newId = 'var_' + Date.now();
+            state.varieties.push({ id: newId, name, price });
+            state.selectedVarietyId = newId;
+
+            closeModal('add-variety-modal');
+            renderVarieties();
+            updateLivePreview();
+            saveCurrentState();
+            showToast(`Đã thêm giống "${name}"`);
+        }
+
+        // ==========================================
+        // 5. XỬ LÝ CHẾ ĐỘ TRỪ BÌ & NHẬP LƯỢT CÂN
+        // ==========================================
+        function setTareMode(mode) {
+            state.tareMode = mode;
+            updateTareModeUI();
+            updateLivePreview();
+            renderAll();
+            saveCurrentState();
+        }
+
+        function updateTareModeUI() {
+            const perTurnBtn = document.getElementById('mode-per-turn-btn');
+            const batchBtn = document.getElementById('mode-batch-total-btn');
+            const weightCol = document.getElementById('weight-input-col');
+            const tareCol = document.getElementById('per-turn-tare-col');
+            const addBtnCol = document.getElementById('add-turn-btn-col');
+            const quickTareBar = document.getElementById('quick-tare-bar');
+            const batchHint = document.getElementById('batch-mode-hint');
+            const receiptModeBadge = document.getElementById('receipt-tare-mode-badge');
+
+            if (state.tareMode === 'batch_total') {
+                batchBtn.className = 'py-1.5 px-2.5 rounded-lg font-extrabold transition flex items-center gap-1 bg-amber-400 text-durian-green shadow-2xs';
+                perTurnBtn.className = 'py-1.5 px-2.5 rounded-lg font-bold transition flex items-center gap-1 text-emerald-100 hover:bg-white/10';
+                if (receiptModeBadge) receiptModeBadge.textContent = 'Trừ bì 1 lần lô';
+
+                tareCol.classList.add('hidden');
+                quickTareBar.classList.add('hidden');
+                batchHint.classList.remove('hidden');
+
+                weightCol.className = 'col-span-12 sm:col-span-8 transition-all';
+                addBtnCol.className = 'col-span-12 sm:col-span-4';
+            } else {
+                perTurnBtn.className = 'py-1.5 px-2.5 rounded-lg font-extrabold transition flex items-center gap-1 bg-amber-400 text-durian-green shadow-2xs';
+                batchBtn.className = 'py-1.5 px-2.5 rounded-lg font-bold transition flex items-center gap-1 text-emerald-100 hover:bg-white/10';
+                if (receiptModeBadge) receiptModeBadge.textContent = 'Trừ bì từng lượt';
+
+                tareCol.classList.remove('hidden');
+                quickTareBar.classList.remove('hidden');
+                batchHint.classList.add('hidden');
+
+                weightCol.className = 'col-span-7 sm:col-span-6 transition-all';
+                addBtnCol.className = 'col-span-12 sm:col-span-3';
+            }
+        }
+
+        function setQuickTare(val) {
+            const tareInput = document.getElementById('tare-input');
+            if (tareInput) {
+                tareInput.value = val;
+                updateLivePreview();
+            }
+        }
+
+        function toggleLockTare() {
+            state.lockTare = !state.lockTare;
+            updateLockTareUI();
+            saveCurrentState();
+            showToast(state.lockTare ? 'Đã khóa số trừ bì cho các lượt sau' : 'Đã mở khóa trừ bì', 'info');
+        }
+
+        function updateLockTareUI() {
+            const btn = document.getElementById('lock-tare-btn');
+            const icon = document.getElementById('lock-tare-icon');
+            const text = document.getElementById('lock-tare-text');
+            if (!btn || !icon || !text) return;
+
+            if (state.lockTare) {
+                btn.className = 'text-[11px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-400 text-durian-green font-extrabold transition';
+                icon.setAttribute('data-lucide', 'lock');
+                text.textContent = 'Đang khóa';
+            } else {
+                btn.className = 'text-[11px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold transition';
+                icon.setAttribute('data-lucide', 'unlock');
+                text.textContent = 'Tự do';
+            }
+            lucide.createIcons();
+        }
+
+        function updateLivePreview() {
+            const weightVal = parseFloat(document.getElementById('weight-input').value) || 0;
+            const tareVal = state.tareMode === 'per_turn' ? (parseFloat(document.getElementById('tare-input').value) || 0) : 0;
+            const activeVar = state.varieties.find(v => v.id === state.selectedVarietyId);
+            const price = activeVar ? activeVar.price : 0;
+
+            const netWeight = Math.max(0, weightVal - tareVal);
+            const money = netWeight * price;
+
+            const previewEl = document.getElementById('live-calc-preview');
+            if (previewEl) {
+                previewEl.textContent = `${formatNumber(netWeight)} kg = ${formatMoney(money)}`;
+            }
+        }
+
+        function handleWeightKeydown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addWeighingEntry();
+            }
+        }
+
+        function addWeighingEntry() {
+            const weightInput = document.getElementById('weight-input');
+            const tareInput = document.getElementById('tare-input');
+
+            const rawWeight = parseFloat(weightInput.value);
+            const tareWeight = state.tareMode === 'per_turn' ? (parseFloat(tareInput.value) || 0) : 0;
+
+            if (isNaN(rawWeight) || rawWeight <= 0) {
+                showToast('Vui lòng nhập số kg hợp lệ!', 'error');
+                weightInput.focus();
+                return;
+            }
+            if (tareWeight < 0) {
+                showToast('Số trừ bì không được âm!', 'error');
+                tareInput.focus();
+                return;
+            }
+            if (state.tareMode === 'per_turn' && tareWeight >= rawWeight) {
+                showToast('Số trừ bì phải nhỏ hơn số kg cân được!', 'error');
+                tareInput.focus();
+                return;
+            }
+
+            const activeVar = state.varieties.find(v => v.id === state.selectedVarietyId) || state.varieties[0];
+            const netWeight = Number((rawWeight - tareWeight).toFixed(2));
+            const total = Math.round(netWeight * activeVar.price);
+
+            const entry = {
+                id: 'ent_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                varietyId: activeVar.id,
+                varietyName: activeVar.name,
+                rawWeight: Number(rawWeight.toFixed(2)),
+                tareWeight: Number(tareWeight.toFixed(2)),
+                netWeight: netWeight,
+                price: activeVar.price,
+                total: total
+            };
+
+            state.entries.push(entry);
+
+            // Reset ô nhập liệu
+            weightInput.value = '';
+            if (!state.lockTare && state.tareMode === 'per_turn') {
+                tareInput.value = '0';
+            }
+            updateLivePreview();
+            renderAll();
+            saveCurrentState();
+            weightInput.focus();
+        }
+
+        // ==========================================
+        // 6. QUẢN LÝ & SỬA / XÓA LƯỢT CÂN
+        // ==========================================
+        function openEditEntryModal(entryId) {
+            const idx = state.entries.findIndex(e => e.id === entryId);
+            if (idx === -1) return;
+            const entry = state.entries[idx];
+
+            document.getElementById('edit-entry-id').value = entry.id;
+            document.getElementById('edit-entry-index-label').textContent = idx + 1;
+
+            const selectEl = document.getElementById('edit-entry-variety');
+            selectEl.innerHTML = '';
+            state.varieties.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.id;
+                opt.textContent = `${v.name} (${v.price.toLocaleString('vi-VN')} đ/kg)`;
+                if (v.id === entry.varietyId) opt.selected = true;
+                selectEl.appendChild(opt);
+            });
+
+            // Nếu giống của lượt cân cũ không còn trong danh sách mặc định, thêm tạm option
+            if (!state.varieties.some(v => v.id === entry.varietyId)) {
+                const opt = document.createElement('option');
+                opt.value = entry.varietyId;
+                opt.textContent = entry.varietyName;
+                opt.selected = true;
+                selectEl.appendChild(opt);
+            }
+
+            document.getElementById('edit-entry-weight').value = entry.rawWeight;
+            document.getElementById('edit-entry-tare').value = entry.tareWeight;
+            document.getElementById('edit-entry-price').value = entry.price.toLocaleString('vi-VN');
+
+            const tareWrapper = document.getElementById('edit-entry-tare-wrapper');
+            if (state.tareMode === 'batch_total') {
+                tareWrapper.classList.add('hidden');
+            } else {
+                tareWrapper.classList.remove('hidden');
+            }
+
+            openModal('edit-entry-modal');
+        }
+
+        function onEditVarietyChange() {
+            const varId = document.getElementById('edit-entry-variety').value;
+            const found = state.varieties.find(v => v.id === varId);
+            if (found) {
+                document.getElementById('edit-entry-price').value = found.price.toLocaleString('vi-VN');
+            }
+        }
+
+        function saveEditedEntry() {
+            const entryId = document.getElementById('edit-entry-id').value;
+            const idx = state.entries.findIndex(e => e.id === entryId);
+            if (idx === -1) return;
+
+            const varId = document.getElementById('edit-entry-variety').value;
+            const foundVar = state.varieties.find(v => v.id === varId);
+            const varietyName = foundVar ? foundVar.name : state.entries[idx].varietyName;
+
+            const rawWeight = parseFloat(document.getElementById('edit-entry-weight').value);
+            const tareWeight = state.tareMode === 'per_turn'
+                ? (parseFloat(document.getElementById('edit-entry-tare').value) || 0)
+                : 0;
+            const price = parseRawNumber(document.getElementById('edit-entry-price').value);
+
+            if (isNaN(rawWeight) || rawWeight <= 0) {
+                showToast('Số kg không hợp lệ!', 'error');
+                return;
+            }
+            if (state.tareMode === 'per_turn' && (tareWeight < 0 || tareWeight >= rawWeight)) {
+                showToast('Số trừ bì không hợp lệ!', 'error');
+                return;
+            }
+
+            const netWeight = Number((rawWeight - tareWeight).toFixed(2));
+            state.entries[idx] = {
+                ...state.entries[idx],
+                varietyId: varId,
+                varietyName: varietyName,
+                rawWeight: Number(rawWeight.toFixed(2)),
+                tareWeight: Number(tareWeight.toFixed(2)),
+                netWeight: netWeight,
+                price: price,
+                total: Math.round(netWeight * price)
+            };
+
+            closeModal('edit-entry-modal');
+            renderAll();
+            saveCurrentState();
+            showToast(`Đã cập nhật lượt cân #${idx + 1}`);
+        }
+
+        function deleteEntry(entryId) {
+            state.entries = state.entries.filter(e => e.id !== entryId);
+            renderAll();
+            saveCurrentState();
+            showToast('Đã xóa lượt cân', 'info');
+        }
+
+        function confirmClearEntries() {
+            showConfirmDialog(
+                'Xóa tất cả lượt cân?',
+                'Toàn bộ các lượt cân trong phiếu hiện tại sẽ bị xóa sạch. Bạn chắc chắn muốn tiếp tục?',
+                () => {
+                    state.entries = [];
+                    state.batchTares = {};
+                    renderAll();
+                    saveCurrentState();
+                    showToast('Đã xóa toàn bộ lượt cân', 'info');
+                }
+            );
+        }
+
+        // ==========================================
+        // 7. TÍNH TOÁN TỔNG HỢP & TRỪ BÌ GỘP THEO LÔ
+        // ==========================================
+        function getGroupKey(entry) {
+            return `${entry.varietyName}__${entry.price}`;
+        }
+
+        function ensureBatchTareConfig(groupKey) {
+            if (!state.batchTares[groupKey]) {
+                state.batchTares[groupKey] = {
+                    mode: 'direct', // 'direct' | 'baskets'
+                    baskets: 0,
+                    kgPerBasket: 2,
+                    totalTare: 0
+                };
+            }
+            return state.batchTares[groupKey];
+        }
+
+        function setBatchTareSubMode(groupKey, subMode) {
+            const cfg = ensureBatchTareConfig(groupKey);
+            cfg.mode = subMode;
+            if (subMode === 'baskets') {
+                cfg.totalTare = Number(((cfg.baskets || 0) * (cfg.kgPerBasket || 0)).toFixed(2));
+            }
+            renderAll();
+            saveCurrentState();
+        }
+
+        function updateBatchDirectTare(groupKey, val) {
+            const cfg = ensureBatchTareConfig(groupKey);
+            cfg.totalTare = Math.max(0, parseFloat(val) || 0);
+            renderSummaryOnly();
+            saveCurrentState();
+        }
+
+        function updateBatchBaskets(groupKey, basketsVal, kgPerBasketVal) {
+            const cfg = ensureBatchTareConfig(groupKey);
+            if (basketsVal !== null) cfg.baskets = Math.max(0, parseFloat(basketsVal) || 0);
+            if (kgPerBasketVal !== null) cfg.kgPerBasket = Math.max(0, parseFloat(kgPerBasketVal) || 0);
+            cfg.totalTare = Number((cfg.baskets * cfg.kgPerBasket).toFixed(2));
+            renderSummaryOnly();
+            saveCurrentState();
+        }
+
+        function calculateGroupedSummary() {
+            const groupsMap = new Map();
+
+            state.entries.forEach(entry => {
+                const key = getGroupKey(entry);
+                if (!groupsMap.has(key)) {
+                    groupsMap.set(key, {
+                        key: key,
+                        varietyName: entry.varietyName,
+                        price: entry.price,
+                        turns: 0,
+                        grossKg: 0,
+                        perTurnTareKg: 0,
+                        batchTareKg: 0,
+                        netKg: 0,
+                        totalMoney: 0
+                    });
+                }
+                const g = groupsMap.get(key);
+                g.turns += 1;
+                g.grossKg = Number((g.grossKg + entry.rawWeight).toFixed(2));
+                g.perTurnTareKg = Number((g.perTurnTareKg + entry.tareWeight).toFixed(2));
+            });
+
+            const groups = Array.from(groupsMap.values());
+            groups.forEach(g => {
+                if (state.tareMode === 'batch_total') {
+                    const cfg = ensureBatchTareConfig(g.key);
+                    g.batchTareKg = Number((cfg.totalTare || 0).toFixed(2));
+                    g.netKg = Number(Math.max(0, g.grossKg - g.batchTareKg).toFixed(2));
+                } else {
+                    g.netKg = Number(Math.max(0, g.grossKg - g.perTurnTareKg).toFixed(2));
+                }
+                g.totalMoney = Math.round(g.netKg * g.price);
+            });
+
+            return groups;
+        }
+
+        function renderAll() {
+            const totalTurns = state.entries.length;
+            document.getElementById('next-turn-number').textContent = totalTurns + 1;
+            document.getElementById('total-turns-badge').textContent = totalTurns;
+
+            const emptyState = document.getElementById('empty-entries-state');
+            const tableWrapper = document.getElementById('entries-table-wrapper');
+            const clearAllBtn = document.getElementById('clear-all-btn');
+            const tbody = document.getElementById('entries-tbody');
+
+            if (totalTurns === 0) {
+                emptyState.classList.remove('hidden');
+                tableWrapper.classList.add('hidden');
+                clearAllBtn.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                tableWrapper.classList.remove('hidden');
+                clearAllBtn.classList.remove('hidden');
+
+                tbody.innerHTML = '';
+                // Hiển thị lượt mới nhất lên trên hoặc theo thứ tự 1 -> N (ở đây giữ 1 -> N rõ ràng)
+                state.entries.forEach((entry, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/90 transition';
+
+                    const tareText = state.tareMode === 'per_turn'
+                        ? (entry.tareWeight > 0 ? `<span class="text-amber-700 font-semibold">-${formatNumber(entry.tareWeight)}</span>` : '<span class="text-slate-400">0</span>')
+                        : '<span class="text-slate-400 text-[11px]">Lô</span>';
+
+                    const effectiveNet = state.tareMode === 'per_turn' ? entry.netWeight : entry.rawWeight;
+                    const effectiveMoney = Math.round(effectiveNet * entry.price);
+
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-3 text-center font-extrabold text-xs text-slate-500">#${index + 1}</td>
+                        <td class="py-2.5 px-2">
+                            <div class="font-bold text-slate-800 text-xs sm:text-sm">${entry.varietyName}</div>
+                            <div class="text-[11px] text-slate-500">${entry.price.toLocaleString('vi-VN')} đ/kg</div>
+                        </td>
+                        <td class="py-2.5 px-2 text-right text-xs">
+                            <div class="font-bold text-slate-700">${formatNumber(entry.rawWeight)} kg</div>
+                            <div>Bì: ${tareText}</div>
+                        </td>
+                        <td class="py-2.5 px-2 text-right font-extrabold text-durian-green text-xs sm:text-sm">
+                            ${formatNumber(effectiveNet)} kg
+                        </td>
+                        <td class="py-2.5 px-2 text-right font-extrabold text-slate-900 text-xs sm:text-sm">
+                            ${formatMoney(effectiveMoney)}
+                        </td>
+                        <td class="py-2.5 px-2 text-center">
+                            <div class="inline-flex items-center gap-1">
+                                <button onclick="openEditEntryModal('${entry.id}')" title="Sửa lượt cân" class="p-1.5 text-slate-500 hover:text-durian-green hover:bg-durian-greenSoft rounded-lg transition">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteEntry('${entry.id}')" title="Xóa lượt cân" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            renderSummaryOnly();
+        }
+
+        function renderSummaryOnly() {
+            const groups = calculateGroupedSummary();
+            const summaryEmpty = document.getElementById('summary-empty');
+            const summaryList = document.getElementById('summary-list');
+
+            let totalTurns = 0;
+            let grandGrossKg = 0;
+            let grandTotalTareKg = 0;
+            let grandTotalKg = 0;
+            let grandTotalMoney = 0;
+
+            if (groups.length === 0) {
+                summaryEmpty.classList.remove('hidden');
+                summaryList.classList.add('hidden');
+                summaryList.innerHTML = '';
+            } else {
+                summaryEmpty.classList.add('hidden');
+                summaryList.classList.remove('hidden');
+                summaryList.innerHTML = '';
+
+                groups.forEach(g => {
+                    const groupTareKg = state.tareMode === 'batch_total' ? g.batchTareKg : g.perTurnTareKg;
+                    totalTurns += g.turns;
+                    grandGrossKg = Number((grandGrossKg + g.grossKg).toFixed(2));
+                    grandTotalTareKg = Number((grandTotalTareKg + groupTareKg).toFixed(2));
+                    grandTotalKg = Number((grandTotalKg + g.netKg).toFixed(2));
+                    grandTotalMoney += g.totalMoney;
+
+                    const card = document.createElement('div');
+                    card.className = 'p-3 rounded-xl bg-slate-50 border border-slate-200/90';
+
+                    let tareDetailHtml = '';
+                    if (state.tareMode === 'per_turn') {
+                        tareDetailHtml = `
+                            <div class="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                                <span>${g.turns} lượt • Cân thô: ${formatNumber(g.grossKg)} kg • Trừ bì: ${formatNumber(g.perTurnTareKg)} kg</span>
+                            </div>
+                        `;
+                    } else {
+                        const cfg = ensureBatchTareConfig(g.key);
+                        const escapedKey = g.key.replace(/'/g, "\\'");
+                        tareDetailHtml = `
+                            <div class="mt-2 pt-2 border-t border-slate-200/80 no-print">
+                                <div class="flex items-center justify-between gap-2 mb-1.5">
+                                    <span class="text-[11px] font-bold text-amber-800">Trừ bì gộp lô (${g.turns} lượt):</span>
+                                    <div class="inline-flex rounded-lg bg-slate-200/80 p-0.5 text-[10px] font-bold">
+                                        <button type="button" onclick="setBatchTareSubMode('${escapedKey}', 'direct')"
+                                            class="px-2 py-0.5 rounded-md transition ${cfg.mode === 'direct' ? 'bg-white text-durian-green shadow-2xs' : 'text-slate-600'}">
+                                            Nhập tổng kg
+                                        </button>
+                                        <button type="button" onclick="setBatchTareSubMode('${escapedKey}', 'baskets')"
+                                            class="px-2 py-0.5 rounded-md transition ${cfg.mode === 'baskets' ? 'bg-white text-durian-green shadow-2xs' : 'text-slate-600'}">
+                                            Số sọt × Kg
+                                        </button>
+                                    </div>
+                                </div>
+                                ${cfg.mode === 'direct' ? `
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-[11px] text-slate-500">Tổng thô: <strong>${formatNumber(g.grossKg)} kg</strong></span>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[11px] font-semibold text-slate-600">Trừ bì:</span>
+                                            <input type="number" step="0.1" inputmode="decimal" value="${cfg.totalTare || ''}" placeholder="0"
+                                                oninput="updateBatchDirectTare('${escapedKey}', this.value)"
+                                                class="w-20 px-2 py-1 text-right text-xs font-extrabold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg focus:outline-none focus:border-durian-green">
+                                            <span class="text-[11px] font-bold text-slate-500">kg</span>
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="flex items-center justify-between gap-1.5 text-xs">
+                                        <div class="flex items-center gap-1">
+                                            <input type="number" inputmode="numeric" value="${cfg.baskets || ''}" placeholder="Số sọt"
+                                                oninput="updateBatchBaskets('${escapedKey}', this.value, null)"
+                                                class="w-16 px-2 py-1 text-center font-extrabold bg-white border border-slate-300 rounded-lg">
+                                            <span class="text-slate-500 font-bold">×</span>
+                                            <input type="number" step="0.1" inputmode="decimal" value="${cfg.kgPerBasket || ''}" placeholder="Kg/sọt"
+                                                oninput="updateBatchBaskets('${escapedKey}', null, this.value)"
+                                                class="w-16 px-2 py-1 text-center font-extrabold bg-white border border-slate-300 rounded-lg">
+                                            <span class="text-[11px] text-slate-500">kg</span>
+                                        </div>
+                                        <span class="text-[11px] font-extrabold text-amber-800">= -${formatNumber(g.batchTareKg)} kg</span>
+                                    </div>
+                                `}
+                            </div>
+                            <div class="text-[11px] text-slate-500 mt-1">
+                                Cân thô: ${formatNumber(g.grossKg)} kg • Trừ bì lô: ${formatNumber(g.batchTareKg)} kg
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="font-extrabold text-sm text-slate-800">${g.varietyName}</div>
+                                <div class="text-xs font-semibold text-durian-green mt-0.5">
+                                    ${formatNumber(g.netKg)} kg × ${g.price.toLocaleString('vi-VN')} đ
+                                </div>
+                            </div>
+                            <div class="text-right font-black text-sm sm:text-base text-slate-900">
+                                ${formatMoney(g.totalMoney)}
+                            </div>
+                        </div>
+                        ${tareDetailHtml}
+                    `;
+                    summaryList.appendChild(card);
+                });
+            }
+
+            // Cập nhật tổng cộng cuối cùng vào 3 ô riêng biệt
+            const deposit = state.depositAmount || 0;
+            const remaining = grandTotalMoney - deposit;
+            const absRemaining = Math.abs(remaining);
+
+            document.getElementById('grand-total-turns-sub').textContent = `(${totalTurns} lượt)`;
+            document.getElementById('grand-total-gross-kg').textContent = `${formatNumber(grandGrossKg)} kg`;
+            document.getElementById('grand-total-tare-kg').textContent = grandTotalTareKg > 0 ? `-${formatNumber(grandTotalTareKg)} kg` : '0 kg';
+            document.getElementById('grand-total-kg').textContent = `${formatNumber(grandTotalKg)} kg`;
+            document.getElementById('grand-total-money').textContent = formatMoney(grandTotalMoney);
+
+            const remainingLabelEl = document.getElementById('remaining-label');
+            const remainingMoneyEl = document.getElementById('remaining-money');
+            if (remaining < 0) {
+                remainingLabelEl.textContent = 'Tiền cọc dư (hoàn lại):';
+                remainingLabelEl.className = 'text-xs sm:text-sm font-extrabold text-blue-700 uppercase';
+                remainingMoneyEl.className = 'text-2xl sm:text-3xl font-black text-blue-600 tracking-tight';
+                remainingMoneyEl.textContent = formatMoney(absRemaining);
+            } else {
+                remainingLabelEl.textContent = deposit > 0 ? 'Còn phải thanh toán:' : 'Tổng thanh toán:';
+                remainingLabelEl.className = 'text-xs sm:text-sm font-extrabold text-red-700 uppercase';
+                remainingMoneyEl.className = 'text-2xl sm:text-3xl font-black text-red-600 tracking-tight';
+                remainingMoneyEl.textContent = formatMoney(remaining);
+            }
+
+            const wordsTarget = deposit > 0 ? absRemaining : grandTotalMoney;
+            const wordsPrefix = (deposit > 0 && remaining < 0) ? 'Bằng chữ (tiền dư): ' : 'Bằng chữ: ';
+            document.getElementById('money-in-words').textContent = `${wordsPrefix}${readMoneyVietnamese(wordsTarget)}`;
+
+            // Cập nhật thanh tổng kết nhanh dưới đáy màn hình điện thoại
+            const mobileKg = document.getElementById('mobile-bar-kg');
+            const mobileMoney = document.getElementById('mobile-bar-money');
+            if (mobileKg) mobileKg.textContent = `${formatNumber(grandTotalKg)} kg`;
+            if (mobileMoney) mobileMoney.textContent = formatMoney(deposit > 0 ? Math.max(0, remaining) : grandTotalMoney);
+
+            lucide.createIcons();
+        }
+
+        function scrollToReceipt() {
+            const receiptEl = document.getElementById('print-receipt-area');
+            if (receiptEl) {
+                receiptEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // ==========================================
+        // 8. SAO CHÉP ZALO, XUẤT ẢNH PHIẾU & SỔ LƯU TRỮ
+        // ==========================================
+        function copyInvoiceText() {
+            const groups = calculateGroupedSummary();
+            if (groups.length === 0) {
+                showToast('Chưa có lượt cân nào để sao chép!', 'error');
+                return;
+            }
+
+            const owner = state.ownerName && state.ownerName.trim() ? state.ownerName.trim() : 'Khách lẻ / Nhà vườn';
+            const dateStr = document.getElementById('receipt-date-display').textContent;
+
+            let grandKg = 0;
+            let grandMoney = 0;
+
+            let lines = [];
+            lines.push(`🍈 PHIẾU CÂN SẦU RIÊNG (#${state.receiptId})`);
+            lines.push(`👤 Chủ hàng: ${owner}`);
+            if (state.ownerNote && state.ownerNote.trim()) {
+                lines.push(`📍 Ghi chú: ${state.ownerNote.trim()}`);
+            }
+            lines.push(`🕒 Thời gian: ${dateStr}`);
+            lines.push(`------------------------------`);
+
+            groups.forEach((g, idx) => {
+                grandKg = Number((grandKg + g.netKg).toFixed(2));
+                grandMoney += g.totalMoney;
+                const tareUsed = state.tareMode === 'batch_total' ? g.batchTareKg : g.perTurnTareKg;
+                lines.push(`${idx + 1}. ${g.varietyName} (${g.turns} lượt)`);
+                lines.push(`   • Cân thô: ${formatNumber(g.grossKg)} kg | Trừ bì: ${formatNumber(tareUsed)} kg`);
+                lines.push(`   • Thực tính: ${formatNumber(g.netKg)} kg × ${g.price.toLocaleString('vi-VN')}đ = ${formatMoney(g.totalMoney)}`);
+            });
+
+            lines.push(`------------------------------`);
+            lines.push(`⚖️ TỔNG KG THỰC TÍNH: ${formatNumber(grandKg)} kg`);
+            lines.push(`💰 TỔNG THÀNH TIỀN: ${formatMoney(grandMoney)}`);
+            if (state.depositAmount && state.depositAmount > 0) {
+                const rem = grandMoney - state.depositAmount;
+                lines.push(`💵 Đã đặt cọc / Ứng: -${formatMoney(state.depositAmount)}`);
+                if (rem >= 0) {
+                    lines.push(`✅ CÒN PHẢI THANH TOÁN: ${formatMoney(rem)}`);
+                    lines.push(`(${readMoneyVietnamese(rem)})`);
+                } else {
+                    lines.push(`🔄 TIỀN CỌC DƯ HOÀN LẠI: ${formatMoney(Math.abs(rem))}`);
+                    lines.push(`(${readMoneyVietnamese(Math.abs(rem))})`);
+                }
+            } else {
+                lines.push(`(${readMoneyVietnamese(grandMoney)})`);
+            }
+
+            const textToCopy = lines.join('\n');
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = textToCopy;
+            tempTextarea.style.position = 'fixed';
+            tempTextarea.style.opacity = '0';
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã chép phiếu cân! Dán trực tiếp vào Zalo.');
+            } catch (err) {
+                showToast('Không thể sao chép tự động!', 'error');
+            }
+            document.body.removeChild(tempTextarea);
+        }
+
+        function exportReceiptImage() {
+            const groups = calculateGroupedSummary();
+            if (groups.length === 0) {
+                showToast('Chưa có lượt cân nào để xuất ảnh!', 'error');
+                return;
+            }
+
+            const receiptArea = document.getElementById('print-receipt-area');
+            showToast('Đang tạo ảnh phiếu cân...', 'info');
+
+            html2canvas(receiptArea, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                ignoreElements: (el) => el.classList && el.classList.contains('no-print')
+            }).then(canvas => {
+                const dataUrl = canvas.toDataURL('image/png');
+                document.getElementById('generated-receipt-img').src = dataUrl;
+                const link = document.getElementById('download-receipt-link');
+                const safeName = (state.ownerName || state.receiptId).replace(/[^a-zA-Z0-9\u00C0-\u1EF9]/g, '_');
+                link.href = dataUrl;
+                link.download = `Phieu_Sau_Rieng_${safeName}.png`;
+                openModal('image-preview-modal');
+            }).catch(() => {
+                showToast('Có lỗi khi tạo ảnh phiếu!', 'error');
+            });
+        }
+
+        function saveReceiptToHistory() {
+            const groups = calculateGroupedSummary();
+            if (groups.length === 0) {
+                showToast('Phiếu trống, chưa có gì để lưu!', 'error');
+                return;
+            }
+
+            let grandKg = 0;
+            let grandMoney = 0;
+            groups.forEach(g => {
+                grandKg = Number((grandKg + g.netKg).toFixed(2));
+                grandMoney += g.totalMoney;
+            });
+
+            const snapshot = {
+                ...JSON.parse(JSON.stringify(state)),
+                savedAt: new Date().toISOString(),
+                summaryTotalKg: grandKg,
+                summaryTotalMoney: grandMoney
+            };
+
+            const existingIdx = savedReceipts.findIndex(r => r.receiptId === state.receiptId);
+            if (existingIdx >= 0) {
+                savedReceipts[existingIdx] = snapshot;
+            } else {
+                savedReceipts.unshift(snapshot);
+            }
+
+            try {
+                localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(savedReceipts));
+                updateHistoryBadge();
+                showToast(`Đã lưu phiếu #${state.receiptId} vào sổ!`);
+            } catch (e) {
+                showToast('Lỗi khi lưu trữ vào trình duyệt!', 'error');
+            }
+        }
+
+        function updateHistoryBadge() {
+            const badge = document.getElementById('history-badge');
+            if (badge) badge.textContent = savedReceipts.length;
+        }
+
+        function openHistoryModal() {
+            const container = document.getElementById('history-list-container');
+            container.innerHTML = '';
+
+            if (savedReceipts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <p class="font-bold text-sm text-slate-600">Chưa có phiếu nào được lưu</p>
+                        <p class="text-xs mt-1">Bấm nút "Lưu vào sổ" sau khi cân xong để lưu trữ.</p>
+                    </div>
+                `;
+            } else {
+                savedReceipts.forEach((rec, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                    const dateStr = new Date(rec.savedAt || rec.createdAt).toLocaleString('vi-VN');
+                    const owner = rec.ownerName && rec.ownerName.trim() ? rec.ownerName : 'Khách lẻ / Nhà vườn';
+
+                    item.innerHTML = `
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-mono font-bold bg-durian-greenSoft text-durian-green px-2 py-0.5 rounded">#${rec.receiptId}</span>
+                                <span class="font-extrabold text-sm text-slate-800">${owner}</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1">${dateStr} • ${rec.entries ? rec.entries.length : 0} lượt cân</div>
+                            <div class="text-xs font-bold text-durian-green mt-1">
+                                ${formatNumber(rec.summaryTotalKg || 0)} kg — <span class="text-red-600 text-sm">${formatMoney(rec.summaryTotalMoney || 0)}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 self-end sm:self-center">
+                            <button onclick="loadReceiptFromHistory(${index})" class="px-3 py-1.5 bg-durian-green text-white text-xs font-bold rounded-lg hover:bg-durian-greenLight transition">
+                                Mở phiếu
+                            </button>
+                            <button onclick="deleteHistoryReceipt(${index})" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Xóa phiếu">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            openModal('history-modal');
+        }
+
+        function loadReceiptFromHistory(index) {
+            const rec = savedReceipts[index];
+            if (!rec) return;
+
+            state = {
+                ...state,
+                ...JSON.parse(JSON.stringify(rec)),
+                batchTares: rec.batchTares || {},
+                depositAmount: rec.depositAmount || 0
+            };
+
+            document.getElementById('owner-name').value = state.ownerName || '';
+            document.getElementById('owner-note').value = state.ownerNote || '';
+            document.getElementById('deposit-input').value = state.depositAmount > 0 ? state.depositAmount.toLocaleString('vi-VN') : '';
+
+            updateReceiptHeaderDisplay();
+            renderVarieties();
+            updateTareModeUI();
+            updateLockTareUI();
+            renderAll();
+            saveCurrentState();
+            closeModal('history-modal');
+            showToast(`Đã tải phiếu #${state.receiptId}`);
+        }
+
+        function deleteHistoryReceipt(index) {
+            savedReceipts.splice(index, 1);
+            localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(savedReceipts));
+            updateHistoryBadge();
+            openHistoryModal();
+            showToast('Đã xóa phiếu khỏi sổ lưu trữ', 'info');
+        }
+
+        function confirmNewReceipt() {
+            if (state.entries.length === 0 && !state.ownerName) {
+                resetToNewReceipt();
+                return;
+            }
+            showConfirmDialog(
+                'Tạo phiếu cân mới?',
+                'Dữ liệu phiếu hiện tại sẽ được làm mới (bạn nên bấm "Lưu vào sổ" trước nếu cần giữ lại). Tiếp tục?',
+                () => resetToNewReceipt()
+            );
+        }
+
+        function resetToNewReceipt() {
+            state.receiptId = generateReceiptCode();
+            state.createdAt = new Date().toISOString();
+            state.ownerName = '';
+            state.ownerNote = '';
+            state.entries = [];
+            state.batchTares = {};
+            state.depositAmount = 0;
+
+            document.getElementById('owner-name').value = '';
+            document.getElementById('owner-note').value = '';
+            document.getElementById('deposit-input').value = '';
+            document.getElementById('weight-input').value = '';
+            if (!state.lockTare) {
+                document.getElementById('tare-input').value = '0';
+            }
+
+            updateReceiptHeaderDisplay();
+            updateLivePreview();
+            renderAll();
+            saveCurrentState();
+            showToast('Đã tạo phiếu cân mới!');
+        }
+
+        // ==========================================
+        // 9. KHỞI CHẠY KHI TẢI TRANG
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedData();
+            document.getElementById('owner-name').value = state.ownerName || '';
+            document.getElementById('owner-note').value = state.ownerNote || '';
+            document.getElementById('deposit-input').value = state.depositAmount > 0 ? state.depositAmount.toLocaleString('vi-VN') : '';
+
+            updateReceiptHeaderDisplay();
+            renderVarieties();
+            updateTareModeUI();
+            updateLockTareUI();
+            updateLivePreview();
+            updateHistoryBadge();
+            renderAll();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
